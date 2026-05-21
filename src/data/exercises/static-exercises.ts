@@ -1,0 +1,51 @@
+import type { Exercise } from "../../domain/exercises/exercise.types";
+
+export const staticExercises: Exercise[] = [
+  {
+    id: "static-colors-choice-1",
+    type: "multiple-choice",
+    title: "Kleurensprint",
+    prompt: "Kies de juiste Franse kleur.",
+    question: "Wat betekent 'rouge'?",
+    choices: [
+      { id: "red", text: "rood", isCorrect: true },
+      { id: "blue", text: "blauw", isCorrect: false },
+      { id: "green", text: "groen", isCorrect: false },
+      { id: "yellow", text: "geel", isCorrect: false },
+    ],
+    moduleIds: ["casse-cou-5-module-2"],
+    learningGoals: ["vocabulary.colors"],
+    points: 10,
+    tags: ["colors"],
+    speechText: "rouge",
+  },
+  {
+    id: "static-animals-match-1",
+    type: "match-pairs",
+    title: "Dierenbocht",
+    prompt: "Verbind elk Frans woord met de Nederlandse betekenis.",
+    pairs: [
+      { id: "chat", left: "le chat", right: "de kat" },
+      { id: "chien", left: "le chien", right: "de hond" },
+      { id: "oiseau", left: "l'oiseau", right: "de vogel" },
+    ],
+    moduleIds: ["casse-cou-5-module-1"],
+    learningGoals: ["vocabulary.animals"],
+    points: 15,
+    tags: ["animals"],
+  },
+  {
+    id: "static-secret-bonjour",
+    type: "secret-word",
+    title: "Geheim woord",
+    prompt: "Vind het Franse begroetingswoord.",
+    clue: "Je zegt dit wanneer je iemand overdag begroet.",
+    answer: "bonjour",
+    revealedLetters: [0, 3],
+    moduleIds: ["casse-cou-5-module-1"],
+    learningGoals: ["vocabulary.school", "spelling.accents"],
+    points: 12,
+    tags: ["greeting", "spelling"],
+    speechText: "Bonjour",
+  },
+];
