@@ -11,32 +11,35 @@ type Exercise =
   | CrackCodeExercise
 ```
 
-## Common fields
+## Common fields (BaseExercise)
 
-Every exercise has:
+Every exercise extends `BaseExercise`:
 
 | Field | Type | Purpose |
 |-------|------|---------|
 | `id` | `string` | Unique identifier |
 | `type` | `MiniGameType` | Discriminant — drives `MiniGameRenderer` |
-| `moduleIds` | `string[]` | Curriculum modules this exercise belongs to |
-| `learningGoals` | `LearningGoal[]` | Skills taught (e.g. `"grammar.participe-passe"`) |
+| `title` | `string` | Display title for the checkpoint card |
+| `prompt` | `string` | Instruction shown to the student |
+| `points` | `number` | Points awarded for a correct answer |
+| `moduleIds` | `LearningModuleId[]` | Curriculum modules this exercise belongs to |
+| `learningGoals` | `LearningGoalId[]` | Skills taught (e.g. `"grammar.participe-passe"`) |
 | `tags` | `string[]` | Additional filtering metadata |
+| `generated?` | `boolean` | True for programmatically generated exercises |
+| `source?` | `string` | Optional origin label for generated exercises |
 
 ## FillBlankExercise
 
 `type: "fill-blank"`
 
-The student types missing words into blanks inside a sentence.
+The student types a missing word into a blank inside a sentence.
 
 ```ts
 {
-  sentence: string        // Full sentence; blanks are marked with ___
-  blanks: {
-    answer: string        // Expected text for each blank (in order)
-    hint?: string         // Optional hint shown near the blank
-  }[]
-  speakText?: string      // French text spoken aloud via speech synthesis
+  sentence: string          // Full sentence; the blank position is implied
+  acceptedAnswers: string[] // All acceptable correct answers
+  hint?: string             // Optional hint shown near the blank
+  speechText?: string       // French text spoken aloud via speech synthesis
 }
 ```
 
@@ -46,14 +49,17 @@ Component: `FillBlankGame.vue`
 
 `type: "multiple-choice"`
 
-The student picks one answer from a list of options.
+The student picks one answer from a list of choices.
 
 ```ts
 {
   question: string
-  options: string[]       // All choices including the correct one
-  correctAnswer: string   // Must match one element of options exactly
-  speakText?: string
+  choices: {
+    id: string
+    text: string
+    isCorrect: boolean
+  }[]
+  speechText?: string
 }
 ```
 
@@ -68,6 +74,7 @@ The student connects left-column items to right-column items.
 ```ts
 {
   pairs: {
+    id: string    // Used by MatchPairsGame to key selections
     left: string
     right: string
   }[]
@@ -82,13 +89,14 @@ Component: `MatchPairsGame.vue`
 
 `type: "secret-word"`
 
-The student guesses a word letter by letter (Hangman-style) based on clues.
+The student guesses a single word from a clue (Hangman-style).
 
 ```ts
 {
-  word: string            // The word to guess (French)
-  clues: string[]         // Clues shown progressively
-  speakText?: string
+  clue: string              // Single clue shown to the student
+  answer: string            // The word to guess (French)
+  revealedLetters?: number[] // Indices of pre-revealed letter positions
+  speechText?: string
 }
 ```
 
@@ -98,16 +106,17 @@ Component: `SecretWordGame.vue`
 
 `type: "crack-code"`
 
-A multi-step puzzle where the student answers several sub-questions; each correct answer reveals one digit of a code.
+A multi-step puzzle where the student answers several sub-questions; each correct answer reveals a reward symbol that forms a code.
 
 ```ts
 {
   steps: {
+    id: string
     question: string
-    answer: string
-    digit: string         // Single character revealed on correct answer
+    acceptedAnswers: string[] // All acceptable correct answers for this step
+    rewardSymbol: string      // Symbol revealed when this step is solved
   }[]
-  codeLength: number      // Total digits in the final code
+  finalMessage: string        // Shown when all steps are complete
 }
 ```
 
@@ -123,19 +132,21 @@ Component: `CrackCodeGame.vue`
 
 ## AnswerResult
 
-Every mini-game emits this on completion:
+Every mini-game emits this on completion (`src/domain/exercises/exercise-result.types.ts`):
 
 ```ts
 {
-  correct: boolean
-  pointsEarned: number
-  answer: string          // What the student actually submitted
-  expectedAnswer: string  // What was expected
+  exerciseId: string    // ID of the completed exercise
+  isCorrect: boolean
+  earnedPoints: number
+  mistakes: string[]    // Each incorrect submission the student made
+  usedHint: boolean
+  completedAt: string   // ISO date string
 }
 ```
 
-The race session records this per checkpoint.
+The race session records this per checkpoint. `ScoreService.applyResult()` uses `earnedPoints` and `isCorrect`; the actual point amount comes from the exercise's `points` field and the mini-game's scoring logic.
 
 ## Answer normalization
 
-`src/shared/utils/normalizeAnswer.ts` applies `toLocaleLowerCase("fr-FR")` and trims whitespace before comparing answers. This handles French accents and case differences consistently. All mini-game components should normalize answers before emitting `AnswerResult`.
+`src/shared/utils/normalizeAnswer.ts` applies `.trim()` and `.toLocaleLowerCase("fr-FR")` before comparing answers. This handles case differences with French locale awareness but does **not** strip or normalize diacritics — `mangé` and `mange` are still treated as different answers. Mini-game components should normalize both the student answer and the accepted answers before comparing.

@@ -4,7 +4,7 @@ This page explains how to add French content to the game: verbs, exercises, and 
 
 ## Adding a verb
 
-Verbs live in `src/data/french/french-verbs.ts` as `FrenchVerb` objects.
+Verbs live in `src/data/french/french-verbs.ts` as `FrenchVerb` objects (defined in `src/domain/french/french-verb.types.ts`).
 
 The fastest way to generate the correct JSON is the built-in builder:
 
@@ -18,10 +18,14 @@ A `FrenchVerb` object looks like:
 ```ts
 {
   infinitive: "manger",
+  translationNl: "eten",
   participePasse: "mangé",
-  auxiliaire: "avoir",
-  moduleId: "casse-cou-5-module-5",
-  learningGoal: "grammar.participe-passe",
+  auxiliary: "avoir",       // optional; "avoir" | "être"
+  group: "er",              // "er" | "ir" | "re" | "irregular"
+  moduleIds: ["casse-cou-5-module-5"],
+  tags: ["food"],
+  notes: "",                // optional
+  exampleSentence: "",      // optional
 }
 ```
 
@@ -33,22 +37,27 @@ Static exercises live in `src/data/exercises/static-exercises.ts`.
 
 Add a new object matching the relevant interface from `src/domain/exercises/exercise.types.ts`. See [exercise-types.md](exercise-types.md) for all fields.
 
-Example — a match-pairs exercise:
+Every exercise must include the `BaseExercise` fields (`id`, `type`, `title`, `prompt`, `points`, `moduleIds`, `learningGoals`, `tags`). Example — a match-pairs exercise:
 
 ```ts
 {
   id: "animals-match-1",
   type: "match-pairs",
+  title: "Dierenhoek",
+  prompt: "Koppel het Frans aan het Nederlands.",
+  points: 10,
   moduleIds: ["casse-cou-5-module-1"],
   learningGoals: ["vocabulary.animals"],
   tags: ["animals", "basic"],
   pairs: [
-    { left: "le chat", right: "de kat" },
-    { left: "le chien", right: "de hond" },
-    { left: "le lapin", right: "het konijn" },
+    { id: "pair-1", left: "le chat", right: "de kat" },
+    { id: "pair-2", left: "le chien", right: "de hond" },
+    { id: "pair-3", left: "le lapin", right: "het konijn" },
   ],
 }
 ```
+
+Each pair needs a unique `id` — `MatchPairsGame.vue` keys selections by `pair.id`.
 
 ## Adding a checkpoint to a track
 
@@ -77,22 +86,24 @@ Checkpoints are defined in `src/data/tracks/tracks.ts`. A checkpoint can referen
     learningGoal: "grammar.participe-passe",
     miniGameType: "fill-blank",
     count: 5,
-    seed: 42,          // Deterministic order per student/session
+    seed: "checkpoint-tunnel-v1",  // optional string; same seed = same verb order
   },
 }
 ```
 
-The `seed` field ensures the same verbs appear each time a student retries or resumes this checkpoint.
+The `seed` is an optional string. When provided, the generator produces verbs in a deterministic order for that seed value. The same seed is used for all students — it is not varied per student or session.
 
 ## Adding a track
 
-A `Track` in `tracks.ts` contains:
+A `Track` in `tracks.ts` must include `description` and `moduleId` in addition to `id`, `title`, and `checkpoints`:
 
 ```ts
 {
-  id: "rallye-des-mots",
-  title: "Rallye des Mots",
-  checkpoints: [/* ordered list of CheckpointDefinition */],
+  id: "rallye-des-mots-2",
+  title: "Rallye des Mots 2",
+  description: "De tweede race.",
+  moduleId: "casse-cou-5-module-6",
+  checkpoints: [/* ordered list of Checkpoint */],
 }
 ```
 
@@ -100,6 +111,6 @@ Checkpoints are played in array order. The race ends after the last checkpoint.
 
 ## Curriculum modules
 
-Module IDs (e.g. `"casse-cou-5-module-5"`) come from `src/data/learning/casse-cou.modules.ts`. When adding content for a new module, register the module there first, then use its ID in exercises and verbs.
+Module IDs (e.g. `"casse-cou-5-module-5"`) come from `src/data/learning/casse-cou.modules.ts`. When adding content for a new module, register the module there first, then use its ID in verbs, exercises, and generator queries.
 
 Learning goals follow dot-notation: `"grammar.participe-passe"`, `"vocabulary.animals"`, etc. These can be extended freely — just use the same string consistently in verbs, exercises, and generator queries.

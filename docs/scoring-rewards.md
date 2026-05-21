@@ -2,56 +2,74 @@
 
 ## Score
 
-Points are earned per mini-game and accumulated across checkpoints in a race session. The exact point values are defined in `src/services/scoring/score.service.ts`.
+Points per exercise are defined on each `Exercise` object via the `points` field. Mini-game components apply their own scoring logic when emitting `AnswerResult.earnedPoints` — see individual components in `src/features/minigames/` to see how partial credit or bonuses work.
 
-A `Score` object tracks:
+`ScoreService.applyResult()` in `src/services/scoring/score.service.ts` merges an `AnswerResult` into the current `Score`:
 
-- `totalPoints` — accumulated points for the session
-- `correctAnswers` — count of exercises answered correctly
-- `mistakes` — array of incorrect submissions with context
+```ts
+interface Score {
+  points: number          // accumulated points for the session
+  correctAnswers: number  // count of exercises answered correctly
+  mistakes: number        // count of incorrect submissions
+}
+```
 
 ## Streaks
 
 A streak is a run of consecutive correct answers without any mistakes in between.
 
-`src/services/scoring/streak.service.ts` tracks:
+`StreakService.applyResult()` in `src/services/scoring/streak.service.ts` updates:
 
-- `currentStreak` — resets to 0 on any incorrect answer
-- `bestStreak` — highest streak reached in the session
+```ts
+interface Streak {
+  current: number   // resets to 0 on any incorrect answer
+  best: number      // highest streak reached in the session
+}
+```
 
 Streaks carry across checkpoints within a single race session.
 
 ## Badges
 
-Badges are calculated once at the end of a race by `RewardService.calculateBadges()` in `src/services/scoring/reward.service.ts`. They are then saved to the student's progress record.
+Badges are calculated at the end of a race inside `RacePage.handleCompleted()` — not in `FinishPage`. When the last checkpoint completes, `RacePage` calls `rewardService.calculateBadges(session)` and saves the result before routing to the finish screen. `FinishPage` only renders the already-completed session.
 
-| Badge | Condition |
-|-------|-----------|
-| First Finish | Complete any race |
-| Perfect Checkpoint | Answer a checkpoint with zero mistakes |
-| Turbo Streak 3 | Reach a streak of 3 in a session |
-| Turbo Streak 5 | Reach a streak of 5 in a session |
-| Grammar Hero | Answer a participe passé exercise correctly |
-| Code Cracker | Complete a crack-code checkpoint |
+The badge definitions (id, title, icon, description) live in `src/services/scoring/reward.service.ts`.
+
+| Badge id | Condition |
+|----------|-----------|
+| `first-finish` | `session.completedAt` is set |
+| `perfect-checkpoint` | Any result has `isCorrect && mistakes.length === 0` |
+| `turbo-streak-3` | `session.streak.best >= 3` |
+| `turbo-streak-5` | `session.streak.best >= 5` |
+| `grammar-hero` | Any result with `exerciseId` containing `"participe-passe"` is correct |
+| `code-cracker` | Any result with `exerciseId` containing `"crack-code"` is correct |
 
 Badges are additive — a student can earn multiple badges in a single session.
 
 ## Per-student persistence
 
-`src/services/storage/student-progress.storage.ts` stores:
+`StudentProgress` in `src/services/storage/student-progress.storage.ts` stores:
 
-- All-time total score and correct answers
-- All-time best streak
-- All-time mistakes list
-- Array of earned badges (with timestamp)
-- Array of completed race sessions (history)
+```ts
+interface StudentProgress {
+  studentId: string
+  activeSession?: RaceSession       // in-progress race, cleared on completion
+  completedSessions: RaceSession[]  // full session objects
+  scoreHistory: ScoreHistoryEntry[] // lightweight summary per completed session
+  streak: Streak                    // updated to best-ever on each completion
+  badges: EarnedBadge[]             // deduplicated across sessions
+  mistakes: string[]                // all incorrect submissions ever
+}
+```
 
-Progress is merged after each race: new points are added to the running total, new badges are appended (duplicates not re-added), and the completed session is pushed to history.
+There is no single "all-time total points" field. Derive it by summing `scoreHistory[].points`.
 
-## Extending rewards
+`StudentProgressStorage.completeSession()` merges a finished session: appends to `completedSessions`, pushes a `ScoreHistoryEntry`, updates `streak.best`, deduplicates new badges, and collects mistakes.
+
+## Extending badges
 
 To add a new badge:
 
-1. Add a new entry to the `BadgeType` union in `src/domain/race/reward.types.ts`.
-2. Add the earning condition to `RewardService.calculateBadges()`.
-3. Add a display entry (label, icon, description) wherever badges are rendered (`RewardBadge.vue`).
+1. Add a `Badge` object to the `badges` array in `src/services/scoring/reward.service.ts`.
+2. Add the earning condition inside `RewardService.calculateBadges()`.
+3. Add a display entry in `RewardBadge.vue` (or wherever badges are rendered) if a custom icon/label is needed.
