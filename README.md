@@ -1,5 +1,12 @@
 # Rallye des Mots
 
+## Documentation
+
+- [Architecture](docs/architecture.md) — folder layout, routing, storage, session lifecycle
+- [Exercise types](docs/exercise-types.md) — all mini-game interfaces and how to add a new type
+- [Content guide](docs/content-guide.md) — adding verbs, static exercises, checkpoints, and tracks
+- [Scoring & rewards](docs/scoring-rewards.md) — points, streaks, badges, and per-student persistence
+
 A local-first Vue 3 + TypeScript educational racing game for children learning French. Students select a profile, complete mini games at checkpoints, earn points and badges, and finish the track.
 
 ## Run the app
